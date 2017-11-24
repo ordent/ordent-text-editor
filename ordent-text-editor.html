@@ -1,0 +1,233 @@
+<link rel="import" href="bower_components/polymer/polymer-element.html">
+<link rel="import" href="bower_components/polymer-quill/polymer-quill.html">
+<link rel="import" href="bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="bower_components/polymerfire/firebase-storage-ref.html">
+<link rel="import" href="bower_components/d2l-loading-spinner/d2l-loading-spinner.html">
+<link rel="import" href="bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
+<link rel="import" href="bower_components/paper-button/paper-button.html">
+<link rel="import" href="bower_components/paper-spinner/paper-spinner-lite.html">
+<dom-module id="ordent-text-editor">
+  <template>
+    <style include="quill-core quill-snow">
+      :host {
+        display: block;
+      }
+      #dialog, #errorDialog{
+        text-align: center;
+      }
+      .text-center{
+        text-align: center;
+      }
+      .approve-button{
+        background: crimson;
+        color: white;
+      }
+      .button-wrapper{
+        text-align: center;
+        margin-top: 20px;
+      }
+      #buttonConfirm{
+        background: white;
+        color: #333;
+        border: 1px #333 solid;
+      }
+    </style>
+    <h2>Hello [[prop1]]!</h2>
+    <paper-dialog id="dialog" with-backdrop>
+      <paper-spinner-lite active id="spinner"></paper-spinner-lite>
+      <h4 class="text-center">Uploading</h4>
+    </paper-dialog>
+    <paper-dialog id="errorDialog" modal>
+      <paper-dialog-scrollable>
+        <h4>Uploading Failed</h4>
+        <h5>You are either offline, or the connection is not good enough for file upload operation.</h5>
+        <paper-button class="approve-button" dialog-dismiss>Ok</paper-button>
+      </paper-dialog-scrollable>
+    </paper-dialog>
+    <div id="editor"></div>
+    <div class="button-wrapper">
+      <paper-button id="buttonConfirm" on-tap="actionConfirmButton">[[confirmTextButton]]</paper-button>
+    </div>
+    <firebase-app id="app" auth-domain="[[authDomain]]" database-url="[[databaseUrl]]" api-key="[[apiKey]]" storage-bucket="[[storageBucket]]"
+      messaging-sender-id="[[messagingSenderId]]"></firebase-app>
+    <firebase-storage-ref id="ref" path="{{path}}" metadata="{{metadata}}" storage-uri="{{gsUri}}" download-url="{{downloadUrl}}">
+    </firebase-storage-ref>
+  </template>
+  <script>
+    /**
+     * `kitchen-sink`
+     * 
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class OrdentTextEditor extends Polymer.Element {
+      static get is() { return 'ordent-text-editor'; }
+      static get properties() {
+        return {
+          prop1: {
+            type: String,
+            value: 'ordent-text-editor'
+          },
+          authDomain: {
+            type: String
+          },
+          databaseUrl: {
+            type: String
+          },
+          apiKey: {
+            type: String
+          },
+          storageBucket: {
+            type: String
+          },
+          messagingSenderId: {
+            type: String
+          },
+          editor: {
+            type: Object,
+            observer: "_editorChanged"
+          },
+          path: {
+            type: String
+          },
+          metadata: {
+            type: Object
+          },
+          gsUri: {
+            type: String,
+            observer : "_observeDownloadUrl"
+          },
+          downloadUrl: {
+            type: String,
+            observer : "_observeDownloadUrl"
+          },
+          toolbarOptions : {
+            type : Array,
+            value : function(){
+              return [[{'header' : [1,2,3,4,5,6,false]}, 'align'],['bold', 'italic', 'underline'], ['link', 'image'], ['blockquote', {'list':'ordered'}, {'list':'bullet'}, 'code-block']];
+            }
+          },
+          firebase : {
+            type : Boolean,
+            value : false
+          },
+          confirmTextButton : {
+            type : String,
+            value : "Konfirmasi"
+          }
+        };
+      }
+      connectedCallback() {
+        super.connectedCallback();
+        let self = this;
+        // let toolbarOptions = [['bold', 'italic'], ['link', 'image']];
+        this.editor = new Quill(this.$.editor, {
+          theme: 'snow',
+          modules: {
+            toolbar: self.toolbarOptions
+          }
+        });
+
+        this.editor.on('text-change', function (delta, oldDelta, source) {
+          self._textChanged(delta, oldDelta, source, self);
+        });
+        
+        this.addEventListener('content-submitted', function(e){
+          console.log(e);
+        })
+        window.editor = this.editor;
+      }
+      _editorChanged(e) {
+        console.log(e);
+      }
+      _textChanged(delta, oldDelta, source, self) {
+        let position = delta.length();
+        if (source == 'api') {
+          // console.log(delta);
+        } else if (source == 'user') {
+          if(this._isImage(delta) && this.firebase){
+              self.$.dialog.open();          
+              self.editor.enable(false);
+              self.editor.deleteText(position-1, 1);            
+              self._imageChanged(delta).then(function(snapshot){
+                self.editor.insertEmbed(position-1, "image", snapshot.downloadURL);
+                self.$.dialog.close();            
+                self.editor.enable();
+                self.editor.focus();
+              }).catch(function(e){
+                self.$.dialog.close();
+                self.$.errorDialog.open();
+              });
+          }
+        }
+      }
+      _isImage(delta){
+        var flag = false;
+        for (let i = 0; i < delta.ops.length; i++) {
+          const element = delta.ops[i];
+          if (element.hasOwnProperty("insert")) {
+            if (element.insert.hasOwnProperty("image")) {
+              if(this.isDataURL(element.insert.image)){
+                flag = true;
+              }
+            }
+          }
+        }
+        return flag;
+      }
+      _imageChanged(delta) {
+        for (let i = 0; i < delta.ops.length; i++) {
+          const element = delta.ops[i];
+          if (element.hasOwnProperty("insert")) {
+            if (element.insert.hasOwnProperty("image")) {
+              return this._uploadImage(element.insert.image);
+            }
+          }
+        }
+      }
+      isDataURL(s) {
+        var regex = /^\s*data:([a-z]+\/[a-z]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;        
+        return !!s.match(regex);
+      }
+
+      _uploadImage(image) {
+        let file = this.dataURLtoFile(image, btoa(new Date().toDateString)+".png");
+        return this.$.ref.put(file);
+      }
+      dataURLtoFile(dataurl, filename) {
+        var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+          bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+      }
+      _observeDownloadUrl(n, o){
+        console.log(n, o);
+      }
+      getEditor(){
+        return this.editor;
+      }
+      getText(){
+        return this.editor.getText();
+      }
+      getContent(){
+        return this.editor.getContents();
+      }
+      updateContents(delta){
+        return this.editor.setContents(delta);
+      }
+      actionConfirmButton(e){
+        this.dispatchEvent(new CustomEvent('content-submitted', {detail : {
+          delta : this.getContent(),
+          text : this.getText()
+        }}));
+      }
+    }
+
+    window.customElements.define(OrdentTextEditor.is, OrdentTextEditor);
+  </script>
+</dom-module>

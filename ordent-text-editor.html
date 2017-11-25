@@ -47,7 +47,7 @@
     </paper-dialog>
     <div id="editor"></div>
     <div class="button-wrapper">
-      <paper-button id="buttonConfirm" on-tap="actionConfirmButton">[[confirmTextButton]]</paper-button>
+      <!-- <paper-button id="buttonConfirm" on-tap="actionConfirmButton">[[confirmTextButton]]</paper-button> -->
     </div>
     <firebase-app id="app" auth-domain="[[authDomain]]" database-url="[[databaseUrl]]" api-key="[[apiKey]]" storage-bucket="[[storageBucket]]"
       messaging-sender-id="[[messagingSenderId]]"></firebase-app>
@@ -135,9 +135,9 @@
           self._textChanged(delta, oldDelta, source, self);
         });
         
-        this.addEventListener('content-submitted', function(e){
-          console.log(e);
-        })
+        // this.addEventListener('content-submitted', function(e){
+        //   console.log(e);
+        // })
         window.editor = this.editor;
       }
       _editorChanged(e) {
@@ -157,10 +157,13 @@
                 self.$.dialog.close();            
                 self.editor.enable();
                 self.editor.focus();
+                self.actionConfirmButton();
               }).catch(function(e){
                 self.$.dialog.close();
                 self.$.errorDialog.open();
               });
+          }else{
+            self.actionConfirmButton();
           }
         }
       }

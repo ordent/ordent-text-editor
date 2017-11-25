@@ -1,0 +1,85 @@
+<link rel="import" href="bower_components/polymer/polymer-element.html">
+<link rel="import" href="bower_components/polymer-quill/polymer-quill.html">
+<dom-module id="ordent-text-renderer">
+  <template>
+    <style include="quill-core quill-snow">
+      :host {
+        display: none;
+      }
+    </style>
+  </template>
+  <script>
+    /**
+     * `kitchen-sink`
+     * 
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class OrdentTextRenderer extends Polymer.Element {
+      static get is() { return 'ordent-text-renderer'; }
+      static get properties() {
+        return {
+          editor : {
+            type : Object
+          },
+          value : {
+            observer : "_valueChanged"
+          },
+          content : {
+            type : Object,
+            observer : "_contentChanged"
+          }
+        };
+      }
+      connectedCallback() {
+        super.connectedCallback();
+        let self = this;
+        let editor = document.createElement("div");
+        this.shadowRoot.appendChild(editor);
+        let toolbarOptions = [['bold', 'italic'], ['link', 'image']];
+        this.editor = new Quill(editor, {
+          theme: 'snow',
+          modules: {
+            toolbar: self.toolbarOptions
+          }
+        });
+        
+      }
+      _valueChanged(n, o){
+        if(n != undefined){
+          let content;
+          try{
+            content = JSON.parse(n);
+          }catch(e){
+            content = n;
+          }
+          this.set('content', content);
+        }
+      }
+      _contentChanged(n, o){
+        if(n != undefined){
+          this.updateContents(n);
+        }
+      }
+      getEditor(){
+        return this.editor;
+      }
+      getText(){
+        return this.editor.getText();
+      }
+      getContent(){
+        return this.editor.getContents();
+      }
+      updateContents(delta){
+        return this.editor.setContents(delta);
+      }
+      getHTML(){
+        return this.shadowRoot.querySelector(".ql-editor").innerHTML;
+      }
+    }
+
+    window.customElements.define(OrdentTextRenderer.is, OrdentTextRenderer);
+  </script>
+</dom-module>

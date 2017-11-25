@@ -10,8 +10,9 @@
 
     <link rel="import" href="../bower_components/iron-demo-helpers/demo-pages-shared-styles.html">
     <link rel="import" href="../bower_components/iron-demo-helpers/demo-snippet.html">
-    <link rel="import" href="../ordent-text-editor.html">
-
+    <!-- <link rel="import" href="../ordent-text-editor.html"> -->
+    <link rel="import" href="../ordent-text-renderer.html">
+    
     <custom-style>
       <style is="custom-style" include="demo-pages-shared-styles">
       </style>
@@ -20,9 +21,16 @@
   <body>
     <div class="vertical-section-container centered">
       <h3>Basic ordent-text-editor demo</h3>      
-      <demo-snippet>
+      <!-- <demo-snippet>
         <template>
           <ordent-text-editor api-key="" auth-domain="" database-url="" storage-bucket="" messaging-sender-id="" path="" firebase></ordent-text-editor>
+        </template>
+      </demo-snippet> -->
+      <demo-snippet>
+        <template>
+          <ordent-text-renderer>
+
+          </ordent-text-renderer>
         </template>
       </demo-snippet>
     </div>

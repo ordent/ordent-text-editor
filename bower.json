@@ -10,7 +10,8 @@
     "d2l-loading-spinner": "^6.0.0",
     "paper-spinner": "^2.0.0",
     "paper-dialog-scrollable": "^2.1.0",
-    "paper-button": "^2.0.0"
+    "paper-button": "^2.0.0",
+    "iron-ajax": "^2.0.6"
   },
   "devDependencies": {
     "iron-demo-helpers": "PolymerElements/iron-demo-helpers#^2.0.0",

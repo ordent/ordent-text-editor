@@ -7,6 +7,7 @@
 <link rel="import" href="../paper-dialog-scrollable/paper-dialog-scrollable.html">
 <link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../paper-spinner/paper-spinner-lite.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
 <dom-module id="ordent-text-editor">
   <template>
     <style include="quill-core quill-snow">
@@ -53,6 +54,7 @@
       messaging-sender-id="[[messagingSenderId]]"></firebase-app>
     <firebase-storage-ref id="ref" path="{{path}}" metadata="{{metadata}}" storage-uri="{{gsUri}}" download-url="{{downloadUrl}}">
     </firebase-storage-ref>
+    <iron-ajax url="[[apiUrl]]" id="ironAjax"></iron-ajax>
   </template>
   <script>
     /**
@@ -70,6 +72,9 @@
           prop1: {
             type: String,
             value: 'ordent-text-editor'
+          },
+          apiUrl : {
+            type : String
           },
           authDomain: {
             type: String
@@ -114,6 +119,10 @@
             type : Boolean,
             value : false
           },
+          api : {
+            type : Boolean,
+            value : false
+          },
           confirmTextButton : {
             type : String,
             value : "Konfirmasi"
@@ -148,17 +157,23 @@
         if (source == 'api') {
           // console.log(delta);
         } else if (source == 'user') {
-          if(this._isImage(delta) && this.firebase){
+          if(this._isImage(delta)){
               self.$.dialog.open();          
               self.editor.enable(false);
               self.editor.deleteText(position-1, 1);            
               self._imageChanged(delta).then(function(snapshot){
-                self.editor.insertEmbed(position-1, "image", snapshot.downloadURL);
+                if(self.firebase){
+                  self.editor.insertEmbed(position-1, "image", snapshot.downloadURL);
+                }else if(self.api){
+                  console.log(snapshot.response);
+                  self.editor.insertEmbed(position-1, "image", snapshot.response.data.files);
+                }
                 self.$.dialog.close();            
                 self.editor.enable();
                 self.editor.focus();
                 self.actionConfirmButton();
               }).catch(function(e){
+                console.log(e);
                 self.$.dialog.close();
                 self.$.errorDialog.open();
               });
@@ -186,7 +201,11 @@
           const element = delta.ops[i];
           if (element.hasOwnProperty("insert")) {
             if (element.insert.hasOwnProperty("image")) {
-              return this._uploadImage(element.insert.image);
+              if(this.firebase){
+                return this._uploadImage(element.insert.image);
+              }else if(this.api){
+                return this._uploadImageToApi(element.insert.image);
+              }
             }
           }
         }
@@ -194,6 +213,17 @@
       isDataURL(s) {
         var regex = /^\s*data:([a-z]+\/[a-z]+(;[a-z\-]+\=[a-z\-]+)?)?(;base64)?,[a-z0-9\!\$\&\'\,\(\)\*\+\,\;\=\-\.\_\~\:\@\/\?\%\s]*\s*$/i;        
         return !!s.match(regex);
+      }
+
+      _uploadImageToApi(image){
+        let file = this.dataURLtoFile(image, btoa(new Date().toDateString)+".png");
+        let formData = new FormData;
+        formData.append("files", file);
+        this.$.ironAjax.method = "POST";
+        this.$.ironAjax.body = formData;
+        let request = this.$.ironAjax.generateRequest();
+        request.send();
+        return request.completes;
       }
 
       _uploadImage(image) {
